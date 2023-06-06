@@ -1,57 +1,72 @@
-import { useState } from "react";
+import { useReducer, useEffect, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import DoneList from "./assets/components/DoneList";
 import SearchBar from "./assets/components/SearchBar";
 import TodoList from "./assets/components/TodoList";
 
-const data = [
-  {
-    id: 1,
-    task: "Complete project proposal",
-    isDone: true,
-  },
-  {
-    id: 2,
-    task: "Implement login functionality",
-    isDone: false,
-  },
-  {
-    id: 3,
-    task: "Write unit tests",
-    isDone: false,
-  },
-  {
-    id: 4,
-    task: "Design user interface",
-    isDone: true,
-  },
-  {
-    id: 5,
-    task: "Refactor codebase",
-    isDone: false,
-  },
-];
+function reducer(list, action) {
+  switch (action.type) {
+    case "add_todo":
+      return [
+        ...list,
+        { id: action.id, isDone: action.isDone, task: action.task },
+      ];
+    case "delete_todo":
+      return list?.filter((ele) => ele.id != action.id);
+    case "update-status":
+      return list?.map((todo) => {
+        if (todo.id === action.id) {
+          return { ...todo, isDone: !todo.isDone };
+        }
+        return todo;
+      });
+    case "update_task":
+      return list?.map((todo) => {
+        if (todo.id === action.id) {
+          return { ...todo, task: action.task };
+        }
+        return todo;
+      });
+    default:
+      return list;
+  }
+}
 
 function App() {
-  const [list, setList] = useState(data);
+  const [list, dispatch] = useReducer(
+    reducer,
+    JSON.parse(localStorage.getItem("todos")) ?? []
+  );
+
+  useEffect(() => {
+    const handleUnload = () => {
+      let data = JSON.stringify(list);
+      localStorage.setItem("todos", data);
+    };
+
+    window.addEventListener("unload", handleUnload);
+
+    return () => {
+      window.removeEventListener("unload", handleUnload);
+    };
+  }, [list]);
 
   const onAddTodo = (task) => {
     let id = uuidv4();
     let isDone = false;
-    setList([...list, { id, isDone, task }]);
+    dispatch({ type: "add_todo", id, isDone, task });
   };
 
   const deleteTodo = (id) => {
-    setList(list.filter((ele) => ele.id != id));
+    dispatch({ type: "delete_todo", id });
   };
 
   const changeTodoStatus = (id) => {
-    setList(
-      list.map((todo) => {
-        if (todo.id == id) todo.isDone = !todo.isDone;
-        return todo;
-      })
-    );
+    dispatch({ type: "update-status", id });
+  };
+
+  const onUpdateTodoText = (task, id) => {
+    dispatch({ type: "update_task", id, task });
   };
 
   return (
@@ -62,6 +77,7 @@ function App() {
           list={list}
           deleteTodo={deleteTodo}
           changeTodoStatus={changeTodoStatus}
+          onUpdateTodoText={onUpdateTodoText}
         />
         <DoneList
           list={list}
